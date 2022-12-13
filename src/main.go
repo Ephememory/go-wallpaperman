@@ -27,6 +27,7 @@ const (
 var (
 	user32DLL           *windows.LazyDLL
 	procSystemParamInfo *windows.LazyProc
+	openFolder          *systray.MenuItem
 )
 
 func main() {
@@ -40,13 +41,7 @@ func onReady() {
 	systray.SetTitle("wallpaperman")
 	systray.SetTooltip("Wallpaper Manager")
 
-	openFolder := systray.AddMenuItem("Open containing folder", "Opens the folder the app is running in.")
-
-	go func() {
-		<-openFolder.ClickedCh
-		cmd := exec.Command(`explorer`, `/select,`, `/`)
-		cmd.Run()
-	}()
+	openFolder = systray.AddMenuItem("Open containing folder", "Opens the folder the app is running in.")
 
 	systray.AddSeparator()
 
@@ -54,13 +49,15 @@ func onReady() {
 	go func() {
 		<-close.ClickedCh
 		systray.Quit()
+
 	}()
 
 	postReady()
 }
 
 func onExit() {
-
+	user32DLL = nil
+	procSystemParamInfo = nil
 }
 
 func mainLoop(day, night *uint16) {
@@ -75,7 +72,13 @@ func mainLoop(day, night *uint16) {
 		}
 
 		procSystemParamInfo.Call(20, 0, uintptr(unsafe.Pointer(timeOfDayImage)), 0x001A)
-		time.Sleep(time.Hour * 1)
+		go func() {
+			<-openFolder.ClickedCh
+			cmd := exec.Command(`explorer`, `.`)
+			cmd.Run()
+		}()
+
+		time.Sleep(time.Second * 1)
 	}
 
 }
